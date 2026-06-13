@@ -257,7 +257,7 @@
     </div>
 
     <button class="btn-main" id="btn-toggle" onclick="togglePlay()">START</button>
-    <div class="status-indicator" id="wake-status">☀️ Screen Sleep Disabled</div>
+    <div class="status-indicator" id="wake-status">&#x2600;&#xFE0F; Screen Sleep Disabled</div>
 </div>
 
 <script>
@@ -267,6 +267,7 @@
     let phases = ['inhale', 'hold', 'exhale', 'rest'];
     let currentPhaseIdx = 0;
     let timeLeft = 0;
+    let phaseSkipCount = 0;
 
     const config = { inhale: 4, hold: 4, exhale: 4, rest: 4 };
 
@@ -342,11 +343,13 @@
     }
 
     function startPacer() {
+        if (config.inhale + config.hold + config.exhale + config.rest === 0) return;
         isRunning = true;
         elements.toggleBtn.innerText = "PAUSE";
         elements.toggleBtn.style.backgroundColor = "#ef4444";
         elements.toggleBtn.style.color = "#ffffff";
         currentPhaseIdx = 0;
+        phaseSkipCount = 0;
         initPhase();
         timer = setInterval(tick, 1000);
         requestWakeLock();
@@ -372,9 +375,16 @@
         timeLeft = config[currentPhase];
 
         if (timeLeft === 0) {
+            phaseSkipCount++;
+            if (phaseSkipCount >= phases.length) {
+                phaseSkipCount = 0;
+                pausePacer();
+                return;
+            }
             nextPhase();
             return;
         }
+        phaseSkipCount = 0;
 
         elements.timerText.innerText = timeLeft;
 
