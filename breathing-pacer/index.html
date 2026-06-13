@@ -1,1 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#38bdf8">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Breathe">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.svg">
+    <title>Breathing Pacer</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.2);
+        }
 
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 25px;
+        }
+
+        /* Preset Buttons */
+        .presets {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .btn-preset {
+            background-color: #334155;
+            color: var(--text-main);
+            border: none;
+            padding: 10px 5px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
+
+        .btn-preset.active {
+            background-color: var(--accent);
+            color: #000;
+            font-weight: bold;
+        }
+
+        /* Main Pacer Circle Area */
+        .pacer-area {
+            height: 220px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .circle-outer {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background-color: #334155;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .circle-progress {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: var(--accent);
+            box-shadow: 0 0 30px var(--accent-glow);
+            transition: transform 0.1s linear;
+            position: absolute;
+            transform: scale(1);
+        }
+
+        .text-display {
+            position: relative;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        #action-text {
+            font-size: 1.2rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        #timer-text {
+            font-size: 2rem;
+            font-weight: 800;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* Controls */
+        .controls-grid {
+            text-align: left;
+            margin-bottom: 25px;
+        }
+
+        .control-group {
+            margin-bottom: 12px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            accent-color: var(--accent);
+            background: #334155;
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-main {
+            width: 100%;
+            background-color: var(--accent);
+            color: #0f172a;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            touch-action: manipulation;
+        }
+
+        .btn-main:hover {
+            background-color: #7dd3fc;
+        }
+
+        /* Wake Lock Status Indicator */
+        .status-indicator {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Breathing Pacer</h1>
+    <p class="subtitle">Settle your heart rate and regulate your nervous system</p>
+
+    <div class="presets">
+        <button class="btn-preset" id="preset-sigh" onclick="setPreset('sigh')">Physiological Sigh</button>
+        <button class="btn-preset" id="preset-box" onclick="setPreset('box')">Box Breathing</button>
+        <button class="btn-preset" id="preset-478" onclick="setPreset('478')">4-7-8 Rhythm</button>
+    </div>
+
+    <div class="pacer-area">
+        <div class="circle-outer">
+            <div class="circle-progress" id="pacer-circle"></div>
+            <div class="text-display">
+                <div id="action-text">READY</div>
+                <div id="timer-text">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls-grid">
+        <div class="control-group">
+            <div class="control-label"><span>Inhale</span><span id="val-inhale">4s</span></div>
+            <input type="range" id="slide-inhale" min="0" max="10" value="4" oninput="updateSettings()">
+        </div>
+        <div class="control-group">
+            <div class="control-label"><span>Hold (Full)</span><span id="val-hold">4s</span></div>
+            <input type="range" id="slide-hold" min="0" max="10" value="4" oninput="updateSettings()">
+        </div>
+        <div class="control-group">
+            <div class="control-label"><span>Exhale</span><span id="val-exhale">4s</span></div>
+            <input type="range" id="slide-exhale" min="0" max="10" value="4" oninput="updateSettings()">
+        </div>
+        <div class="control-group">
+            <div class="control-label"><span>Rest (Empty)</span><span id="val-rest">4s</span></div>
+            <input type="range" id="slide-rest" min="0" max="10" value="4" oninput="updateSettings()">
+        </div>
+    </div>
+
+    <button class="btn-main" id="btn-toggle" onclick="togglePlay()">START</button>
+    <div class="status-indicator" id="wake-status">☀️ Screen Sleep Disabled</div>
+</div>
+
+<script>
+    let timer = null;
+    let wakeLock = null;
+    let isRunning = false;
+    let phases = ['inhale', 'hold', 'exhale', 'rest'];
+    let currentPhaseIdx = 0;
+    let timeLeft = 0;
+
+    const config = { inhale: 4, hold: 4, exhale: 4, rest: 4 };
+
+    const elements = {
+        circle: document.getElementById('pacer-circle'),
+        actionText: document.getElementById('action-text'),
+        timerText: document.getElementById('timer-text'),
+        toggleBtn: document.getElementById('btn-toggle'),
+        wakeStatus: document.getElementById('wake-status')
+    };
+
+    function updateSettings() {
+        config.inhale = parseInt(document.getElementById('slide-inhale').value);
+        config.hold = parseInt(document.getElementById('slide-hold').value);
+        config.exhale = parseInt(document.getElementById('slide-exhale').value);
+        config.rest = parseInt(document.getElementById('slide-rest').value);
+
+        document.getElementById('val-inhale').innerText = config.inhale + 's';
+        document.getElementById('val-hold').innerText = config.hold + 's';
+        document.getElementById('val-exhale').innerText = config.exhale + 's';
+        document.getElementById('val-rest').innerText = config.rest + 's';
+
+        // Clear preset highlight when user manually adjusts a slider
+        document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
+    }
+
+    function setPreset(type) {
+        const presets = {
+            sigh: { inhale: 4, hold: 1, exhale: 6, rest: 1 },
+            box:  { inhale: 4, hold: 4, exhale: 4, rest: 4 },
+            478:  { inhale: 4, hold: 7, exhale: 8, rest: 0 }
+        };
+        const p = presets[type];
+        document.getElementById('slide-inhale').value = p.inhale;
+        document.getElementById('slide-hold').value   = p.hold;
+        document.getElementById('slide-exhale').value = p.exhale;
+        document.getElementById('slide-rest').value   = p.rest;
+
+        updateSettings(); // syncs config & display values, clears all active classes
+        document.getElementById('preset-' + type).classList.add('active');
+
+        if (isRunning) resetPacer();
+    }
+
+    function togglePlay() {
+        if (isRunning) {
+            pausePacer();
+        } else {
+            startPacer();
+        }
+    }
+
+    async function requestWakeLock() {
+        try {
+            if ('wakeLock' in navigator) {
+                wakeLock = await navigator.wakeLock.request('screen');
+                elements.wakeStatus.style.display = 'block';
+                wakeLock.addEventListener('release', () => {
+                    if (!isRunning) elements.wakeStatus.style.display = 'none';
+                });
+            }
+        } catch (err) {
+            console.log('Wake Lock Error:', err.name, err.message);
+        }
+    }
+
+    function releaseWakeLock() {
+        if (wakeLock !== null) {
+            wakeLock.release();
+            wakeLock = null;
+            elements.wakeStatus.style.display = 'none';
+        }
+    }
+
+    function startPacer() {
+        isRunning = true;
+        elements.toggleBtn.innerText = "PAUSE";
+        elements.toggleBtn.style.backgroundColor = "#ef4444";
+        elements.toggleBtn.style.color = "#ffffff";
+        currentPhaseIdx = 0;
+        initPhase();
+        timer = setInterval(tick, 1000);
+        requestWakeLock();
+    }
+
+    function pausePacer() {
+        isRunning = false;
+        clearInterval(timer);
+        elements.toggleBtn.innerText = "START";
+        elements.toggleBtn.style.backgroundColor = "var(--accent)";
+        elements.toggleBtn.style.color = "#0f172a";
+        elements.actionText.innerText = "PAUSED";
+        releaseWakeLock();
+    }
+
+    function resetPacer() {
+        clearInterval(timer);
+        startPacer();
+    }
+
+    function initPhase() {
+        const currentPhase = phases[currentPhaseIdx];
+        timeLeft = config[currentPhase];
+
+        if (timeLeft === 0) {
+            nextPhase();
+            return;
+        }
+
+        elements.timerText.innerText = timeLeft;
+
+        if (currentPhase === 'inhale') {
+            elements.actionText.innerText = "BREATHE IN";
+            elements.circle.style.transition = `transform ${timeLeft}s linear`;
+            elements.circle.style.transform = "scale(2.2)";
+        } else if (currentPhase === 'hold') {
+            elements.actionText.innerText = "HOLD BREATH";
+            elements.circle.style.transition = "none";
+        } else if (currentPhase === 'exhale') {
+            elements.actionText.innerText = "BREATHE OUT";
+            elements.circle.style.transition = `transform ${timeLeft}s linear`;
+            elements.circle.style.transform = "scale(1)";
+        } else if (currentPhase === 'rest') {
+            elements.actionText.innerText = "HOLD EMPTY";
+            elements.circle.style.transition = "none";
+        }
+    }
+
+    function tick() {
+        timeLeft--;
+        if (timeLeft <= 0) {
+            nextPhase();
+        } else {
+            elements.timerText.innerText = timeLeft;
+        }
+    }
+
+    function nextPhase() {
+        currentPhaseIdx = (currentPhaseIdx + 1) % phases.length;
+        initPhase();
+    }
+
+    document.addEventListener('visibilitychange', async () => {
+        if (wakeLock !== null && document.visibilityState === 'visible' && isRunning) {
+            await requestWakeLock();
+        }
+    });
+
+    // Service worker for offline / installable PWA
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+
+    // Initialise with box breathing preset selected
+    setPreset('box');
+</script>
+</body>
+</html>
