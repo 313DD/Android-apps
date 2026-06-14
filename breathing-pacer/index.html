@@ -19,6 +19,7 @@
             --text-muted: #94a3b8;
             --accent: #38bdf8;
             --accent-glow: rgba(56, 189, 248, 0.2);
+            --text-label: #cbd5e1;
         }
 
         * {
@@ -70,19 +71,33 @@
         .btn-preset {
             background-color: #334155;
             color: var(--text-main);
-            border: none;
-            padding: 8px 4px;
+            border: 2px solid transparent;
+            padding: 10px 4px;
             border-radius: 6px;
             font-size: 0.7rem;
             cursor: pointer;
             transition: all 0.2s;
             touch-action: manipulation;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-preset:hover {
+            background-color: #475569;
+        }
+
+        .btn-preset:focus-visible {
+            outline: 3px solid var(--accent);
+            outline-offset: 2px;
         }
 
         .btn-preset.active {
             background-color: var(--accent);
             color: #000;
             font-weight: bold;
+            border-color: #0c4a6e;
         }
 
         .pacer-area {
@@ -104,6 +119,7 @@
             justify-content: center;
             align-items: center;
             position: relative;
+            role: img;
         }
 
         .circle-progress {
@@ -117,6 +133,12 @@
             transition: transform 0.1s linear,
                         background-color 0.4s ease,
                         box-shadow 0.4s ease;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .circle-progress {
+                transition: none;
+            }
         }
 
         .text-display {
@@ -158,7 +180,7 @@
 
         .stat-label {
             font-size: 0.65rem;
-            color: var(--text-muted);
+            color: var(--text-label);
             margin-top: 1px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -170,15 +192,16 @@
         }
 
         .control-group {
-            margin-bottom: 8px;
+            margin-bottom: 12px;
         }
 
         .control-label {
             display: flex;
             justify-content: space-between;
             font-size: 0.8rem;
-            color: var(--text-muted);
-            margin-bottom: 3px;
+            color: var(--text-label);
+            margin-bottom: 4px;
+            font-weight: 500;
         }
 
         input[type="range"] {
@@ -193,23 +216,37 @@
             cursor: pointer;
         }
 
+        input[type="range"]:focus-visible {
+            outline: 3px solid var(--accent);
+            outline-offset: 2px;
+        }
+
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
             background: var(--accent);
             cursor: pointer;
+            border: 2px solid #0f172a;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            box-shadow: 0 0 8px var(--accent-glow);
         }
 
         input[type="range"]::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
             background: var(--accent);
             cursor: pointer;
-            border: none;
+            border: 2px solid #0f172a;
+        }
+
+        input[type="range"]::-moz-range-thumb:hover {
+            box-shadow: 0 0 8px var(--accent-glow);
         }
 
         .btn-row {
@@ -222,17 +259,23 @@
             background-color: var(--accent);
             color: #0f172a;
             border: none;
-            padding: 11px;
+            padding: 12px;
             border-radius: 8px;
             font-size: 0.95rem;
             font-weight: bold;
             cursor: pointer;
             transition: background 0.2s;
             touch-action: manipulation;
+            min-height: 44px;
         }
 
         .btn-main:hover {
             background-color: #7dd3fc;
+        }
+
+        .btn-main:focus-visible {
+            outline: 3px solid #0c4a6e;
+            outline-offset: 2px;
         }
 
         .btn-stop {
@@ -241,17 +284,23 @@
             background-color: #334155;
             color: var(--text-main);
             border: none;
-            padding: 11px;
+            padding: 12px;
             border-radius: 8px;
             font-size: 0.95rem;
             font-weight: bold;
             cursor: pointer;
             transition: background 0.2s;
             touch-action: manipulation;
+            min-height: 44px;
         }
 
         .btn-stop:hover {
             background-color: #475569;
+        }
+
+        .btn-stop:focus-visible {
+            outline: 3px solid var(--accent);
+            outline-offset: 2px;
         }
 
         .status-indicator {
@@ -259,6 +308,26 @@
             color: var(--text-muted);
             margin-top: 6px;
             display: none;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+
+        .aria-live-region {
+            position: absolute;
+            left: -10000px;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
         }
     </style>
 </head>
@@ -268,58 +337,79 @@
     <h1>Breathing Pacer</h1>
     <p class="subtitle">Settle your heart rate and regulate your nervous system</p>
 
-    <div class="presets">
-        <button class="btn-preset" id="preset-sigh" onclick="setPreset('sigh')">Physiological Sigh</button>
-        <button class="btn-preset" id="preset-box" onclick="setPreset('box')">Box Breathing</button>
-        <button class="btn-preset" id="preset-478" onclick="setPreset('478')">4-7-8 Rhythm</button>
-    </div>
+    <fieldset class="presets" aria-labelledby="preset-legend">
+        <legend id="preset-legend" class="sr-only">Breathing Presets</legend>
+        <button class="btn-preset" id="preset-sigh" onclick="setPreset('sigh')" aria-label="Physiological Sigh - Inhale 4 seconds, Hold 1 second, Exhale 6 seconds, Rest 1 second">Physiological Sigh</button>
+        <button class="btn-preset" id="preset-box" onclick="setPreset('box')" aria-label="Box Breathing - Inhale 4 seconds, Hold 4 seconds, Exhale 4 seconds, Rest 4 seconds">Box Breathing</button>
+        <button class="btn-preset" id="preset-478" onclick="setPreset('478')" aria-label="4-7-8 Rhythm - Inhale 4 seconds, Hold 7 seconds, Exhale 8 seconds">4-7-8 Rhythm</button>
+    </fieldset>
 
-    <div class="pacer-area">
+    <div class="pacer-area" aria-label="Breathing pacer visualization" role="img">
         <div class="circle-outer">
-            <div class="circle-progress" id="pacer-circle"></div>
+            <div class="circle-progress" id="pacer-circle" aria-hidden="true"></div>
             <div class="text-display">
-                <div id="action-text">READY</div>
-                <div id="timer-text">0</div>
+                <div id="action-text" aria-live="polite" aria-atomic="true">READY</div>
+                <div id="timer-text" aria-live="assertive" aria-atomic="true">0</div>
             </div>
         </div>
     </div>
 
-    <div class="stats">
+    <div class="stats" role="region" aria-label="Session statistics">
         <div class="stat">
-            <div class="stat-value" id="stat-cycles">0</div>
+            <div class="stat-value" id="stat-cycles" aria-label="Cycles completed">0</div>
             <div class="stat-label">Cycles</div>
         </div>
         <div class="stat">
-            <div class="stat-value" id="stat-time">0:00</div>
+            <div class="stat-value" id="stat-time" aria-label="Total duration">0:00</div>
             <div class="stat-label">Duration</div>
         </div>
     </div>
 
-    <div class="controls-grid">
+    <div class="controls-grid" role="group" aria-labelledby="controls-title">
+        <h2 id="controls-title" class="sr-only">Breathing Control Settings</h2>
+        
         <div class="control-group">
-            <div class="control-label"><span>Inhale</span><span id="val-inhale">4s</span></div>
-            <input type="range" id="slide-inhale" min="0" max="10" value="4" oninput="updateSettings()">
+            <label for="slide-inhale" class="control-label">
+                <span>Inhale</span>
+                <span id="val-inhale" aria-live="polite">4s</span>
+            </label>
+            <input type="range" id="slide-inhale" min="0" max="10" value="4" oninput="updateSettings()" aria-label="Inhale duration in seconds">
         </div>
+
         <div class="control-group">
-            <div class="control-label"><span>Hold (Full)</span><span id="val-hold">4s</span></div>
-            <input type="range" id="slide-hold" min="0" max="10" value="4" oninput="updateSettings()">
+            <label for="slide-hold" class="control-label">
+                <span>Hold (Full)</span>
+                <span id="val-hold" aria-live="polite">4s</span>
+            </label>
+            <input type="range" id="slide-hold" min="0" max="10" value="4" oninput="updateSettings()" aria-label="Hold breath duration in seconds">
         </div>
+
         <div class="control-group">
-            <div class="control-label"><span>Exhale</span><span id="val-exhale">4s</span></div>
-            <input type="range" id="slide-exhale" min="0" max="10" value="4" oninput="updateSettings()">
+            <label for="slide-exhale" class="control-label">
+                <span>Exhale</span>
+                <span id="val-exhale" aria-live="polite">4s</span>
+            </label>
+            <input type="range" id="slide-exhale" min="0" max="10" value="4" oninput="updateSettings()" aria-label="Exhale duration in seconds">
         </div>
+
         <div class="control-group">
-            <div class="control-label"><span>Rest (Empty)</span><span id="val-rest">4s</span></div>
-            <input type="range" id="slide-rest" min="0" max="10" value="4" oninput="updateSettings()">
+            <label for="slide-rest" class="control-label">
+                <span>Rest (Empty)</span>
+                <span id="val-rest" aria-live="polite">4s</span>
+            </label>
+            <input type="range" id="slide-rest" min="0" max="10" value="4" oninput="updateSettings()" aria-label="Rest duration in seconds">
         </div>
     </div>
 
     <div class="btn-row">
-        <button class="btn-main" id="btn-toggle" onclick="togglePlay()">START</button>
-        <button class="btn-stop" id="btn-stop" onclick="stopPacer()">STOP</button>
+        <button class="btn-main" id="btn-toggle" onclick="togglePlay()" aria-label="Start breathing session">START</button>
+        <button class="btn-stop" id="btn-stop" onclick="stopPacer()" aria-label="Stop breathing session">STOP</button>
     </div>
-    <div class="status-indicator" id="wake-status">&#x2600;&#xFE0F; Screen Sleep Disabled</div>
+    <div class="status-indicator" id="wake-status" aria-label="Screen wake lock status">&#x2600;&#xFE0F; Screen Sleep Disabled</div>
 </div>
+
+<!-- Screen reader announcements -->
+<div class="aria-live-region" aria-live="polite" aria-atomic="true" id="sr-announcements"></div>
 
 <script>
     let timer = null;
@@ -350,8 +440,13 @@
         stopBtn:    document.getElementById('btn-stop'),
         wakeStatus: document.getElementById('wake-status'),
         statCycles: document.getElementById('stat-cycles'),
-        statTime:   document.getElementById('stat-time')
+        statTime:   document.getElementById('stat-time'),
+        srAnnouncements: document.getElementById('sr-announcements')
     };
+
+    function announceToScreenReader(message) {
+        elements.srAnnouncements.textContent = message;
+    }
 
     function formatTime(s) {
         const m = Math.floor(s / 60);
@@ -387,13 +482,14 @@
         document.getElementById('val-rest').innerText   = config.rest   + 's';
 
         document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
+        announceToScreenReader(`Settings updated: Inhale ${config.inhale}s, Hold ${config.hold}s, Exhale ${config.exhale}s, Rest ${config.rest}s`);
     }
 
     function setPreset(type) {
         const presets = {
-            sigh: { inhale: 4, hold: 1, exhale: 6, rest: 1 },
-            box:  { inhale: 4, hold: 4, exhale: 4, rest: 4 },
-            478:  { inhale: 4, hold: 7, exhale: 8, rest: 0 }
+            sigh: { inhale: 4, hold: 1, exhale: 6, rest: 1, name: 'Physiological Sigh' },
+            box:  { inhale: 4, hold: 4, exhale: 4, rest: 4, name: 'Box Breathing' },
+            478:  { inhale: 4, hold: 7, exhale: 8, rest: 0, name: '4-7-8 Rhythm' }
         };
         const p = presets[type];
         document.getElementById('slide-inhale').value = p.inhale;
@@ -403,6 +499,7 @@
 
         updateSettings();
         document.getElementById('preset-' + type).classList.add('active');
+        announceToScreenReader(`${p.name} preset selected`);
 
         if (appState !== 'stopped') stopPacer();
     }
@@ -446,10 +543,12 @@
         elements.toggleBtn.innerText = 'PAUSE';
         elements.toggleBtn.style.backgroundColor = '#ef4444';
         elements.toggleBtn.style.color = '#ffffff';
+        elements.toggleBtn.setAttribute('aria-label', 'Pause breathing session');
         elements.stopBtn.style.display = 'block';
         initPhase();
         timer = setInterval(tick, 1000);
         requestWakeLock();
+        announceToScreenReader('Breathing session started');
     }
 
     function pausePacer() {
@@ -462,8 +561,10 @@
         elements.toggleBtn.innerText = 'RESUME';
         elements.toggleBtn.style.backgroundColor = 'var(--accent)';
         elements.toggleBtn.style.color = '#0f172a';
+        elements.toggleBtn.setAttribute('aria-label', 'Resume breathing session');
         elements.actionText.innerText = 'PAUSED';
         releaseWakeLock();
+        announceToScreenReader('Breathing session paused');
     }
 
     function resumePacer() {
@@ -471,6 +572,7 @@
         elements.toggleBtn.innerText = 'PAUSE';
         elements.toggleBtn.style.backgroundColor = '#ef4444';
         elements.toggleBtn.style.color = '#ffffff';
+        elements.toggleBtn.setAttribute('aria-label', 'Pause breathing session');
         const phase = phases[currentPhaseIdx];
         elements.actionText.innerText = phase === 'inhale' ? 'BREATHE IN'
             : phase === 'hold'   ? 'HOLD BREATH'
@@ -484,6 +586,7 @@
         }
         timer = setInterval(tick, 1000);
         requestWakeLock();
+        announceToScreenReader('Breathing session resumed');
     }
 
     function stopPacer() {
@@ -492,6 +595,7 @@
         elements.toggleBtn.innerText = 'START';
         elements.toggleBtn.style.backgroundColor = 'var(--accent)';
         elements.toggleBtn.style.color = '#0f172a';
+        elements.toggleBtn.setAttribute('aria-label', 'Start breathing session');
         elements.actionText.innerText = 'READY';
         elements.timerText.innerText  = '0';
         elements.stopBtn.style.display = 'none';
@@ -500,6 +604,7 @@
         updateStats();
         resetCircle();
         releaseWakeLock();
+        announceToScreenReader('Breathing session stopped');
     }
 
     function initPhase() {
