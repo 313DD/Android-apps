@@ -60,7 +60,6 @@
             margin-bottom: 25px;
         }
 
-        /* Preset Buttons */
         .presets {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -86,7 +85,6 @@
             font-weight: bold;
         }
 
-        /* Main Pacer Circle Area */
         .pacer-area {
             height: 220px;
             display: flex;
@@ -139,6 +137,35 @@
             text-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
 
+        /* Stats row */
+        .stats {
+            display: none;
+            justify-content: center;
+            gap: 40px;
+            background-color: #334155;
+            border-radius: 12px;
+            padding: 14px 20px;
+            margin-bottom: 25px;
+        }
+
+        .stats.visible {
+            display: flex;
+        }
+
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .stat-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
         /* Controls */
         .controls-grid {
             text-align: left;
@@ -188,8 +215,14 @@
             border: none;
         }
 
+        /* Button row */
+        .btn-row {
+            display: flex;
+            gap: 10px;
+        }
+
         .btn-main {
-            width: 100%;
+            flex: 1;
             background-color: var(--accent);
             color: #0f172a;
             border: none;
@@ -206,7 +239,25 @@
             background-color: #7dd3fc;
         }
 
-        /* Wake Lock Status Indicator */
+        .btn-stop {
+            flex: 1;
+            display: none;
+            background-color: #334155;
+            color: var(--text-main);
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            touch-action: manipulation;
+        }
+
+        .btn-stop:hover {
+            background-color: #475569;
+        }
+
         .status-indicator {
             font-size: 0.75rem;
             color: var(--text-muted);
@@ -237,6 +288,17 @@
         </div>
     </div>
 
+    <div class="stats" id="stats">
+        <div class="stat">
+            <div class="stat-value" id="stat-cycles">0</div>
+            <div class="stat-label">Cycles</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="stat-time">0:00</div>
+            <div class="stat-label">Duration</div>
+        </div>
+    </div>
+
     <div class="controls-grid">
         <div class="control-group">
             <div class="control-label"><span>Inhale</span><span id="val-inhale">4s</span></div>
@@ -256,18 +318,23 @@
         </div>
     </div>
 
-    <button class="btn-main" id="btn-toggle" onclick="togglePlay()">START</button>
+    <div class="btn-row">
+        <button class="btn-main" id="btn-toggle" onclick="togglePlay()">START</button>
+        <button class="btn-stop" id="btn-stop" onclick="stopPacer()">STOP</button>
+    </div>
     <div class="status-indicator" id="wake-status">&#x2600;&#xFE0F; Screen Sleep Disabled</div>
 </div>
 
 <script>
     let timer = null;
     let wakeLock = null;
-    let isRunning = false;
+    let appState = 'stopped'; // 'stopped', 'running', 'paused'
     let phases = ['inhale', 'hold', 'exhale', 'rest'];
     let currentPhaseIdx = 0;
     let timeLeft = 0;
     let phaseSkipCount = 0;
+    let cycleCount = 0;
+    let elapsedSeconds = 0;
 
     const config = { inhale: 4, hold: 4, exhale: 4, rest: 4 };
 
@@ -276,21 +343,34 @@
         actionText: document.getElementById('action-text'),
         timerText: document.getElementById('timer-text'),
         toggleBtn: document.getElementById('btn-toggle'),
-        wakeStatus: document.getElementById('wake-status')
+        stopBtn: document.getElementById('btn-stop'),
+        wakeStatus: document.getElementById('wake-status'),
+        stats: document.getElementById('stats'),
+        statCycles: document.getElementById('stat-cycles'),
+        statTime: document.getElementById('stat-time')
     };
+
+    function formatTime(s) {
+        const m = Math.floor(s / 60);
+        return m + ':' + String(s % 60).padStart(2, '0');
+    }
+
+    function updateStats() {
+        elements.statCycles.innerText = cycleCount;
+        elements.statTime.innerText = formatTime(elapsedSeconds);
+    }
 
     function updateSettings() {
         config.inhale = parseInt(document.getElementById('slide-inhale').value);
-        config.hold = parseInt(document.getElementById('slide-hold').value);
+        config.hold   = parseInt(document.getElementById('slide-hold').value);
         config.exhale = parseInt(document.getElementById('slide-exhale').value);
-        config.rest = parseInt(document.getElementById('slide-rest').value);
+        config.rest   = parseInt(document.getElementById('slide-rest').value);
 
         document.getElementById('val-inhale').innerText = config.inhale + 's';
-        document.getElementById('val-hold').innerText = config.hold + 's';
+        document.getElementById('val-hold').innerText   = config.hold   + 's';
         document.getElementById('val-exhale').innerText = config.exhale + 's';
-        document.getElementById('val-rest').innerText = config.rest + 's';
+        document.getElementById('val-rest').innerText   = config.rest   + 's';
 
-        // Clear preset highlight when user manually adjusts a slider
         document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
     }
 
@@ -306,18 +386,16 @@
         document.getElementById('slide-exhale').value = p.exhale;
         document.getElementById('slide-rest').value   = p.rest;
 
-        updateSettings(); // syncs config & display values, clears all active classes
+        updateSettings();
         document.getElementById('preset-' + type).classList.add('active');
 
-        if (isRunning) resetPacer();
+        if (appState !== 'stopped') stopPacer();
     }
 
     function togglePlay() {
-        if (isRunning) {
-            pausePacer();
-        } else {
-            startPacer();
-        }
+        if (appState === 'running') pausePacer();
+        else if (appState === 'paused') resumePacer();
+        else startPacer();
     }
 
     async function requestWakeLock() {
@@ -326,7 +404,7 @@
                 wakeLock = await navigator.wakeLock.request('screen');
                 elements.wakeStatus.style.display = 'block';
                 wakeLock.addEventListener('release', () => {
-                    if (!isRunning) elements.wakeStatus.style.display = 'none';
+                    if (appState !== 'running') elements.wakeStatus.style.display = 'none';
                 });
             }
         } catch (err) {
@@ -344,30 +422,57 @@
 
     function startPacer() {
         if (config.inhale + config.hold + config.exhale + config.rest === 0) return;
-        isRunning = true;
-        elements.toggleBtn.innerText = "PAUSE";
-        elements.toggleBtn.style.backgroundColor = "#ef4444";
-        elements.toggleBtn.style.color = "#ffffff";
+        appState = 'running';
+        cycleCount = 0;
+        elapsedSeconds = 0;
         currentPhaseIdx = 0;
         phaseSkipCount = 0;
+        updateStats();
+        elements.stats.classList.add('visible');
+        elements.toggleBtn.innerText = 'PAUSE';
+        elements.toggleBtn.style.backgroundColor = '#ef4444';
+        elements.toggleBtn.style.color = '#ffffff';
+        elements.stopBtn.style.display = 'block';
         initPhase();
         timer = setInterval(tick, 1000);
         requestWakeLock();
     }
 
     function pausePacer() {
-        isRunning = false;
+        appState = 'paused';
         clearInterval(timer);
-        elements.toggleBtn.innerText = "START";
-        elements.toggleBtn.style.backgroundColor = "var(--accent)";
-        elements.toggleBtn.style.color = "#0f172a";
-        elements.actionText.innerText = "PAUSED";
+        elements.toggleBtn.innerText = 'RESUME';
+        elements.toggleBtn.style.backgroundColor = 'var(--accent)';
+        elements.toggleBtn.style.color = '#0f172a';
+        elements.actionText.innerText = 'PAUSED';
         releaseWakeLock();
     }
 
-    function resetPacer() {
+    function resumePacer() {
+        appState = 'running';
+        elements.toggleBtn.innerText = 'PAUSE';
+        elements.toggleBtn.style.backgroundColor = '#ef4444';
+        elements.toggleBtn.style.color = '#ffffff';
+        elements.actionText.innerText = phases[currentPhaseIdx] === 'inhale' ? 'BREATHE IN'
+            : phases[currentPhaseIdx] === 'hold' ? 'HOLD BREATH'
+            : phases[currentPhaseIdx] === 'exhale' ? 'BREATHE OUT' : 'HOLD EMPTY';
+        timer = setInterval(tick, 1000);
+        requestWakeLock();
+    }
+
+    function stopPacer() {
+        appState = 'stopped';
         clearInterval(timer);
-        startPacer();
+        elements.toggleBtn.innerText = 'START';
+        elements.toggleBtn.style.backgroundColor = 'var(--accent)';
+        elements.toggleBtn.style.color = '#0f172a';
+        elements.actionText.innerText = 'READY';
+        elements.timerText.innerText = '0';
+        elements.circle.style.transition = 'none';
+        elements.circle.style.transform = 'scale(1)';
+        elements.stopBtn.style.display = 'none';
+        elements.stats.classList.remove('visible');
+        releaseWakeLock();
     }
 
     function initPhase() {
@@ -385,52 +490,52 @@
             return;
         }
         phaseSkipCount = 0;
-
         elements.timerText.innerText = timeLeft;
 
         if (currentPhase === 'inhale') {
-            elements.actionText.innerText = "BREATHE IN";
+            elements.actionText.innerText = 'BREATHE IN';
             elements.circle.style.transition = `transform ${timeLeft}s linear`;
-            elements.circle.style.transform = "scale(2.2)";
+            elements.circle.style.transform = 'scale(2.2)';
         } else if (currentPhase === 'hold') {
-            elements.actionText.innerText = "HOLD BREATH";
-            elements.circle.style.transition = "none";
+            elements.actionText.innerText = 'HOLD BREATH';
+            elements.circle.style.transition = 'none';
         } else if (currentPhase === 'exhale') {
-            elements.actionText.innerText = "BREATHE OUT";
+            elements.actionText.innerText = 'BREATHE OUT';
             elements.circle.style.transition = `transform ${timeLeft}s linear`;
-            elements.circle.style.transform = "scale(1)";
+            elements.circle.style.transform = 'scale(1)';
         } else if (currentPhase === 'rest') {
-            elements.actionText.innerText = "HOLD EMPTY";
-            elements.circle.style.transition = "none";
+            elements.actionText.innerText = 'HOLD EMPTY';
+            elements.circle.style.transition = 'none';
         }
     }
 
     function tick() {
         timeLeft--;
+        elapsedSeconds++;
         if (timeLeft <= 0) {
             nextPhase();
         } else {
             elements.timerText.innerText = timeLeft;
         }
+        updateStats();
     }
 
     function nextPhase() {
         currentPhaseIdx = (currentPhaseIdx + 1) % phases.length;
+        if (currentPhaseIdx === 0) cycleCount++;
         initPhase();
     }
 
     document.addEventListener('visibilitychange', async () => {
-        if (wakeLock !== null && document.visibilityState === 'visible' && isRunning) {
+        if (wakeLock !== null && document.visibilityState === 'visible' && appState === 'running') {
             await requestWakeLock();
         }
     });
 
-    // Service worker for offline / installable PWA
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js').catch(() => {});
     }
 
-    // Initialise with box breathing preset selected
     setPreset('box');
 </script>
 </body>
