@@ -137,7 +137,6 @@
             text-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
 
-        /* Stats row */
         .stats {
             display: none;
             justify-content: center;
@@ -166,7 +165,6 @@
             letter-spacing: 0.5px;
         }
 
-        /* Controls */
         .controls-grid {
             text-align: left;
             margin-bottom: 25px;
@@ -215,7 +213,6 @@
             border: none;
         }
 
-        /* Button row */
         .btn-row {
             display: flex;
             gap: 10px;
@@ -441,6 +438,10 @@
     function pausePacer() {
         appState = 'paused';
         clearInterval(timer);
+        // Freeze the circle at its current mid-animation position
+        const frozenTransform = window.getComputedStyle(elements.circle).transform;
+        elements.circle.style.transition = 'none';
+        elements.circle.style.transform = frozenTransform;
         elements.toggleBtn.innerText = 'RESUME';
         elements.toggleBtn.style.backgroundColor = 'var(--accent)';
         elements.toggleBtn.style.color = '#0f172a';
@@ -453,9 +454,17 @@
         elements.toggleBtn.innerText = 'PAUSE';
         elements.toggleBtn.style.backgroundColor = '#ef4444';
         elements.toggleBtn.style.color = '#ffffff';
-        elements.actionText.innerText = phases[currentPhaseIdx] === 'inhale' ? 'BREATHE IN'
-            : phases[currentPhaseIdx] === 'hold' ? 'HOLD BREATH'
-            : phases[currentPhaseIdx] === 'exhale' ? 'BREATHE OUT' : 'HOLD EMPTY';
+        const phase = phases[currentPhaseIdx];
+        elements.actionText.innerText = phase === 'inhale' ? 'BREATHE IN'
+            : phase === 'hold' ? 'HOLD BREATH'
+            : phase === 'exhale' ? 'BREATHE OUT' : 'HOLD EMPTY';
+        // Resume circle animation from frozen position for the remaining timeLeft seconds
+        if (phase === 'inhale' || phase === 'exhale') {
+            const target = phase === 'inhale' ? 'scale(2.2)' : 'scale(1)';
+            elements.circle.getBoundingClientRect(); // force reflow so transition re-triggers
+            elements.circle.style.transition = `transform ${timeLeft}s linear`;
+            elements.circle.style.transform = target;
+        }
         timer = setInterval(tick, 1000);
         requestWakeLock();
     }
