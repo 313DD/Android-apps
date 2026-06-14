@@ -112,9 +112,11 @@
             border-radius: 50%;
             background-color: var(--accent);
             box-shadow: 0 0 30px var(--accent-glow);
-            transition: transform 0.1s linear;
             position: absolute;
             transform: scale(1);
+            transition: transform 0.1s linear,
+                        background-color 0.4s ease,
+                        box-shadow 0.4s ease;
         }
 
         .text-display {
@@ -137,18 +139,15 @@
             text-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
 
+        /* Stats always visible to keep layout height stable */
         .stats {
-            display: none;
+            display: flex;
             justify-content: center;
             gap: 40px;
             background-color: #334155;
             border-radius: 12px;
             padding: 14px 20px;
             margin-bottom: 25px;
-        }
-
-        .stats.visible {
-            display: flex;
         }
 
         .stat-value {
@@ -285,7 +284,7 @@
         </div>
     </div>
 
-    <div class="stats" id="stats">
+    <div class="stats">
         <div class="stat">
             <div class="stat-value" id="stat-cycles">0</div>
             <div class="stat-label">Cycles</div>
@@ -335,16 +334,23 @@
 
     const config = { inhale: 4, hold: 4, exhale: 4, rest: 4 };
 
+    // Circle colour per phase
+    const phaseColors = {
+        inhale: { bg: '#38bdf8', glow: 'rgba(56, 189, 248, 0.3)' },
+        hold:   { bg: '#f59e0b', glow: 'rgba(245, 158, 11, 0.3)'  },
+        exhale: { bg: '#38bdf8', glow: 'rgba(56, 189, 248, 0.3)' },
+        rest:   { bg: '#94a3b8', glow: 'rgba(148, 163, 184, 0.3)' }
+    };
+
     const elements = {
-        circle: document.getElementById('pacer-circle'),
+        circle:     document.getElementById('pacer-circle'),
         actionText: document.getElementById('action-text'),
-        timerText: document.getElementById('timer-text'),
-        toggleBtn: document.getElementById('btn-toggle'),
-        stopBtn: document.getElementById('btn-stop'),
+        timerText:  document.getElementById('timer-text'),
+        toggleBtn:  document.getElementById('btn-toggle'),
+        stopBtn:    document.getElementById('btn-stop'),
         wakeStatus: document.getElementById('wake-status'),
-        stats: document.getElementById('stats'),
         statCycles: document.getElementById('stat-cycles'),
-        statTime: document.getElementById('stat-time')
+        statTime:   document.getElementById('stat-time')
     };
 
     function formatTime(s) {
@@ -354,7 +360,19 @@
 
     function updateStats() {
         elements.statCycles.innerText = cycleCount;
-        elements.statTime.innerText = formatTime(elapsedSeconds);
+        elements.statTime.innerText   = formatTime(elapsedSeconds);
+    }
+
+    function setCircleColor(phase) {
+        const c = phaseColors[phase];
+        elements.circle.style.backgroundColor = c.bg;
+        elements.circle.style.boxShadow = `0 0 30px ${c.glow}`;
+    }
+
+    function resetCircle() {
+        elements.circle.style.transition = 'none';
+        elements.circle.style.transform  = 'scale(1)';
+        setCircleColor('inhale');
     }
 
     function updateSettings() {
@@ -425,7 +443,6 @@
         currentPhaseIdx = 0;
         phaseSkipCount = 0;
         updateStats();
-        elements.stats.classList.add('visible');
         elements.toggleBtn.innerText = 'PAUSE';
         elements.toggleBtn.style.backgroundColor = '#ef4444';
         elements.toggleBtn.style.color = '#ffffff';
@@ -441,7 +458,7 @@
         // Freeze the circle at its current mid-animation position
         const frozenTransform = window.getComputedStyle(elements.circle).transform;
         elements.circle.style.transition = 'none';
-        elements.circle.style.transform = frozenTransform;
+        elements.circle.style.transform  = frozenTransform;
         elements.toggleBtn.innerText = 'RESUME';
         elements.toggleBtn.style.backgroundColor = 'var(--accent)';
         elements.toggleBtn.style.color = '#0f172a';
@@ -456,14 +473,14 @@
         elements.toggleBtn.style.color = '#ffffff';
         const phase = phases[currentPhaseIdx];
         elements.actionText.innerText = phase === 'inhale' ? 'BREATHE IN'
-            : phase === 'hold' ? 'HOLD BREATH'
+            : phase === 'hold'   ? 'HOLD BREATH'
             : phase === 'exhale' ? 'BREATHE OUT' : 'HOLD EMPTY';
         // Resume circle animation from frozen position for the remaining timeLeft seconds
         if (phase === 'inhale' || phase === 'exhale') {
             const target = phase === 'inhale' ? 'scale(2.2)' : 'scale(1)';
             elements.circle.getBoundingClientRect(); // force reflow so transition re-triggers
-            elements.circle.style.transition = `transform ${timeLeft}s linear`;
-            elements.circle.style.transform = target;
+            elements.circle.style.transition = `transform ${timeLeft}s linear, background-color 0.4s ease, box-shadow 0.4s ease`;
+            elements.circle.style.transform  = target;
         }
         timer = setInterval(tick, 1000);
         requestWakeLock();
@@ -476,17 +493,18 @@
         elements.toggleBtn.style.backgroundColor = 'var(--accent)';
         elements.toggleBtn.style.color = '#0f172a';
         elements.actionText.innerText = 'READY';
-        elements.timerText.innerText = '0';
-        elements.circle.style.transition = 'none';
-        elements.circle.style.transform = 'scale(1)';
+        elements.timerText.innerText  = '0';
         elements.stopBtn.style.display = 'none';
-        elements.stats.classList.remove('visible');
+        cycleCount = 0;
+        elapsedSeconds = 0;
+        updateStats();
+        resetCircle();
         releaseWakeLock();
     }
 
     function initPhase() {
-        const currentPhase = phases[currentPhaseIdx];
-        timeLeft = config[currentPhase];
+        const phase = phases[currentPhaseIdx];
+        timeLeft = config[phase];
 
         if (timeLeft === 0) {
             phaseSkipCount++;
@@ -500,21 +518,22 @@
         }
         phaseSkipCount = 0;
         elements.timerText.innerText = timeLeft;
+        setCircleColor(phase);
 
-        if (currentPhase === 'inhale') {
+        if (phase === 'inhale') {
             elements.actionText.innerText = 'BREATHE IN';
-            elements.circle.style.transition = `transform ${timeLeft}s linear`;
-            elements.circle.style.transform = 'scale(2.2)';
-        } else if (currentPhase === 'hold') {
+            elements.circle.style.transition = `transform ${timeLeft}s linear, background-color 0.4s ease, box-shadow 0.4s ease`;
+            elements.circle.style.transform  = 'scale(2.2)';
+        } else if (phase === 'hold') {
             elements.actionText.innerText = 'HOLD BREATH';
-            elements.circle.style.transition = 'none';
-        } else if (currentPhase === 'exhale') {
+            elements.circle.style.transition = 'background-color 0.4s ease, box-shadow 0.4s ease';
+        } else if (phase === 'exhale') {
             elements.actionText.innerText = 'BREATHE OUT';
-            elements.circle.style.transition = `transform ${timeLeft}s linear`;
-            elements.circle.style.transform = 'scale(1)';
-        } else if (currentPhase === 'rest') {
+            elements.circle.style.transition = `transform ${timeLeft}s linear, background-color 0.4s ease, box-shadow 0.4s ease`;
+            elements.circle.style.transform  = 'scale(1)';
+        } else if (phase === 'rest') {
             elements.actionText.innerText = 'HOLD EMPTY';
-            elements.circle.style.transition = 'none';
+            elements.circle.style.transition = 'background-color 0.4s ease, box-shadow 0.4s ease';
         }
     }
 
